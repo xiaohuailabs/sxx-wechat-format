@@ -1,0 +1,13 @@
+{
+  "output_dir": "/tmp/wechat-format",
+  "vault_root": "/path/to/your/obsidian/vault",
+  "settings": {
+    "default_theme": "terracotta",
+    "auto_open_browser": true
+  },
+  "wechat": {
+    "app_id": "你的AppID",
+    "app_secret": "你的AppSecret",
+    "author": "你的笔名"
+  }
+}

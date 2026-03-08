@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} - 微信排版预览</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #f0f0f0;
+    min-height: 100vh;
+}
+.toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.toolbar-info {
+    font-size: 13px;
+    color: #666;
+}
+.toolbar-info span {
+    margin-right: 12px;
+}
+.toolbar-info .theme-name {
+    background: #f5f5f5;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+    color: #333;
+}
+.copy-btn {
+    padding: 10px 24px;
+    background: #07c160;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+}
+.copy-btn:hover { background: #06ae56; transform: translateY(-1px); }
+.copy-btn:active { transform: translateY(0); }
+.copy-btn.copied {
+    background: #34c759;
+}
+.phone-frame {
+    max-width: 415px;
+    margin: 76px auto 40px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+.phone-header {
+    background: #ededed;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: #999;
+    border-bottom: 1px solid #e0e0e0;
+}
+.article-content {
+    padding: 20px;
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+/* 隐藏的纯微信 HTML，用于复制 */
+#wechatHtml {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+}
+@media (max-width: 480px) {
+    .phone-frame {
+        margin: 60px 0 20px;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .toolbar {
+        padding: 8px 12px;
+    }
+    .copy-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <div class="toolbar-left">
+        <div class="toolbar-info">
+            <span class="theme-name">{{THEME_NAME}}</span>
+            <span>{{WORD_COUNT}} 字</span>
+        </div>
+    </div>
+    <button class="copy-btn" onclick="copyToWechat()">复制到微信</button>
+</div>
+
+<div class="phone-frame">
+    <div class="phone-header">微信公众号预览</div>
+    <div class="article-content" id="articleContent">
+{{ARTICLE_HTML}}
+    </div>
+</div>
+
+<!-- 隐藏区域：存放纯微信 HTML（不含预览壳样式），复制时用这个 -->
+<div id="wechatHtml">
+{{ARTICLE_HTML}}
+</div>
+
+<script>
+function copyToWechat() {
+    const source = document.getElementById('wechatHtml');
+    const range = document.createRange();
+    range.selectNodeContents(source);
+
+    // 临时让元素可见（否则某些浏览器不允许复制隐藏元素）
+    source.style.position = 'fixed';
+    source.style.left = '0';
+    source.style.top = '0';
+    source.style.opacity = '0.01';
+    source.style.width = '375px';
+
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    try {
+        document.execCommand('copy');
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '已复制!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = '复制到微信';
+            btn.classList.remove('copied');
+        }, 2500);
+    } catch(e) {
+        // fallback: 尝试 Clipboard API
+        const html = source.innerHTML;
+        const blob = new Blob([html], { type: 'text/html' });
+        const item = new ClipboardItem({ 'text/html': blob });
+        navigator.clipboard.write([item]).then(() => {
+            const btn = document.querySelector('.copy-btn');
+            btn.textContent = '已复制!';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = '复制到微信';
+                btn.classList.remove('copied');
+            }, 2500);
+        }).catch(() => {
+            alert('复制失败，请手动选中文章内容复制');
+        });
+    }
+
+    // 恢复隐藏
+    source.style.position = 'absolute';
+    source.style.left = '-9999px';
+    source.style.top = '-9999px';
+    source.style.opacity = '';
+    source.style.width = '';
+
+    sel.removeAllRanges();
+}
+</script>
+</body>
+</html>

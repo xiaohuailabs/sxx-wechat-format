@@ -5,36 +5,37 @@ Claude Code 公众号一键排版+发布技能。Markdown → 微信兼容 HTML 
 ## 功能
 
 - **排版引擎**：Markdown 转微信公众号兼容的内联样式 HTML
-- **14 套主题**：赤陶、优雅、科技、温暖、醒目、极简、杂志、教程、暗色、复古、故事、新闻、观点、渐变
+- **30 套主题**：5 大分类（深度长文 / 科技产品 / 文艺随笔 / 活力动态 / 模板布局），可视化画廊选择
+- **AI 内容增强**：自动识别对话体、金句、连续图片，套用 dialogue / callout / gallery 容器
 - **图片处理**：自动处理 Obsidian `![[image]]` 和标准 Markdown `![](image)` 引用
 - **外链转脚注**：微信不支持外链，自动转文末脚注
 - **一键发布**：自动上传图片到微信 CDN + 推送到草稿箱
-- **浏览器预览**：排版后自动打开预览页面，带「复制到微信」按钮
+- **主题画廊**：浏览器中用真实文章预览所有主题，点选即用
 
 ## 安装
 
 ```bash
 cd ~/.claude/skills/
 git clone https://github.com/xiaohuailabs/sxx-wechat-format.git
+cp sxx-wechat-format/config.example.json sxx-wechat-format/config.json
 pip3 install markdown requests
 ```
 
 ## 配置
 
-编辑 `config.json`，填入你的公众号凭证：
+编辑 `config.json`：
 
 ```json
 {
   "output_dir": "/tmp/wechat-format",
   "vault_root": "/path/to/your/obsidian/vault",
   "settings": {
-    "default_theme": "terracotta",
+    "default_theme": "newspaper",
     "auto_open_browser": true
   },
   "wechat": {
     "app_id": "你的AppID",
-    "app_secret": "你的AppSecret",
-    "author": "你的笔名"
+    "app_secret": "你的AppSecret"
   }
 }
 ```
@@ -51,55 +52,90 @@ pip3 install markdown requests
 排版这篇文章 /path/to/article.md
 ```
 
-```
-排版这篇文章并推送到草稿箱，封面图用 /path/to/cover.jpg
-```
+### 主题画廊（推荐）
 
-### 命令行直接调用
-
-**排版**：
 ```bash
-python3 scripts/format.py --input article.md --theme tech
+python3 scripts/format.py --input article.md --gallery --recommend newspaper magazine ink
 ```
 
-**发布**：
+在浏览器中用真实文章预览 30 个主题，选好后回到 Claude 说主题名。
+
+### 指定主题排版
+
+```bash
+python3 scripts/format.py --input article.md --theme newspaper
+```
+
+### 推送到公众号
+
 ```bash
 python3 scripts/publish.py --dir /tmp/wechat-format/article-name/ --cover cover.jpg
 ```
 
-**一步到位**：
-```bash
-python3 scripts/publish.py --input article.md --cover cover.jpg --theme tech
-```
-
 ## 主题一览
 
-| 主题 | 命令值 | 适合内容 |
-|------|--------|---------|
-| 赤陶 | terracotta | **默认** 知识分享、干货 |
-| 优雅 | elegant | 深度长文、观点文 |
-| 科技 | tech | 技术教程、AI 资讯 |
-| 温暖 | warm | 故事、生活类 |
-| 醒目 | bold | 热点评论 |
-| 极简 | minimal | 知识分享 |
-| 杂志 | magazine | 专题报道 |
-| 教程 | tutorial | 手把手教程 |
-| 暗色 | dark | 技术文章 |
-| 复古 | retro | 文化、历史 |
-| 故事 | story | 人物故事 |
-| 新闻 | news | 新闻快讯 |
-| 观点 | opinion | 评论文章 |
-| 渐变 | gradient | 创意内容 |
+### 独立风格（9 个）
+
+| 主题 | 命令值 | 风格 |
+|------|--------|------|
+| 赤陶 | terracotta | 暖橙色，满底圆角标题 |
+| 字节蓝 | bytedance | 蓝青渐变，科技现代 |
+| 中国风 | chinese | 朱砂红，古典雅致 |
+| 报纸 | newspaper | 纽约时报风，严肃深度 |
+| GitHub | github | 开发者风，浅色代码块 |
+| 少数派 | sspai | 中文科技媒体红 |
+| 包豪斯 | bauhaus | 红蓝黄三原色，先锋几何 |
+| 墨韵 | ink | 纯黑水墨，极简留白 |
+| 暗夜 | midnight | 深色底+霓虹色 |
+
+### 精选风格（7 个）
+
+| 主题 | 命令值 | 风格 |
+|------|--------|------|
+| 运动 | sports | 渐变色带，活力动感 |
+| 薄荷 | mint-fresh | 薄荷绿，清爽 |
+| 日落 | sunset-amber | 琥珀暖调 |
+| 薰衣草 | lavender-dream | 紫色梦幻 |
+| 咖啡 | coffee-house | 棕色暖调 |
+| 微信原生 | wechat-native | 微信绿 |
+| 杂志 | magazine | 超大留白 |
+
+### 模板系列（14 个）
+
+四种布局（简约 / 聚焦 / 精致 / 醒目）× 多种配色（金 / 蓝 / 红 / 绿 / 藏青 / 灰）
+
+## 容器语法
+
+文章中可使用以下容器增强排版：
+
+```markdown
+:::dialogue[对话标题]
+张三：你好
+李四：你好啊
+:::
+
+:::gallery[图片标题]
+![](img1.jpg)
+![](img2.jpg)
+![](img3.jpg)
+:::
+
+> [!important] 核心观点
+> 这里是重点内容
+
+> [!tip] 小技巧
+> 实用提示
+```
 
 ## 自定义主题
 
-在 `themes/` 目录下创建 JSON 文件即可。参考 `themes/terracotta.json`。
+在 `themes/` 目录下创建 JSON 文件。参考 `themes/newspaper.json`。
 
 ## 依赖
 
 - Python 3
 - `markdown` 库
-- `requests` 库
+- `requests` 库（推送到公众号时需要）
 
 ## License
 

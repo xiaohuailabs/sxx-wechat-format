@@ -22,6 +22,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+import html as html_module
+import tempfile
+
 import requests
 
 # ── 路径 ──────────────────────────────────────────────────────────────
@@ -92,8 +95,9 @@ def upload_thumb_image(token, image_path):
         return None
 
 
-def upload_content_image(token, image_path):
-    """上传正文图片（返回 CDN URL，用于替换 HTML 中的本地路径）"""
+def upload_content_image(token, image_path, max_retries=3):
+    """上传正文图片（返回 CDN URL），失败自动重试"""
+    import time
     url = f"https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token={token}"
 
     filename = os.path.basename(image_path)
@@ -105,20 +109,59 @@ def upload_content_image(token, image_path):
         ".gif": "image/gif",
     }.get(ext, "image/jpeg")
 
-    with open(image_path, "rb") as f:
-        files = {"media": (filename, f, content_type)}
-        resp = requests.post(url, files=files, timeout=30)
+    for attempt in range(1, max_retries + 1):
+        try:
+            with open(image_path, "rb") as f:
+                files = {"media": (filename, f, content_type)}
+                resp = requests.post(url, files=files, timeout=30)
 
-    data = resp.json()
-    if "url" in data:
-        return data["url"]
-    else:
-        print(f"  错误: 上传正文图片失败 - {filename}: {data}")
+            data = resp.json()
+            if "url" in data:
+                return data["url"]
+            else:
+                print(f"  ✗ 上传失败 ({attempt}/{max_retries}) - {filename}: {data}")
+        except Exception as e:
+            print(f"  ✗ 上传异常 ({attempt}/{max_retries}) - {filename}: {e}")
+
+        if attempt < max_retries:
+            time.sleep(2 * attempt)  # 递增等待
+
+    print(f"  ✗ 上传彻底失败 - {filename}")
+    return None
+
+
+def download_external_image(url):
+    """下载外部图片到临时文件，返回本地路径"""
+    try:
+        # 还原 HTML 实体（&amp; → &）
+        url = html_module.unescape(url)
+        resp = requests.get(url, timeout=30, headers={
+            "User-Agent": "Mozilla/5.0"
+        })
+        resp.raise_for_status()
+
+        # 从 URL 或 Content-Type 推断扩展名
+        content_type = resp.headers.get("Content-Type", "")
+        if "png" in content_type:
+            ext = ".png"
+        elif "gif" in content_type:
+            ext = ".gif"
+        elif "webp" in content_type:
+            ext = ".webp"
+        else:
+            ext = ".jpg"
+
+        tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+        tmp.write(resp.content)
+        tmp.close()
+        return tmp.name
+    except Exception as e:
+        print(f"  ✗ 下载失败: {url[:60]}... ({e})")
         return None
 
 
-def replace_local_images(html, article_dir, token):
-    """替换 HTML 中的本地图片为微信 CDN URL"""
+def replace_all_images(html, article_dir, token):
+    """替换 HTML 中的所有图片（本地+外部）为微信 CDN URL"""
     image_dir = article_dir / "images"
     replaced = 0
     failed = 0
@@ -127,11 +170,24 @@ def replace_local_images(html, article_dir, token):
         nonlocal replaced, failed
         src = match.group(1)
 
-        # 跳过已经是网络 URL 的图片
-        if src.startswith("http://") or src.startswith("https://"):
+        # 已经是微信 CDN 的图片，跳过
+        if "mmbiz.qpic.cn" in src:
             return match.group(0)
 
-        # 构建本地路径
+        # 外部 URL：先下载再上传
+        if src.startswith("http://") or src.startswith("https://"):
+            local_path = download_external_image(src)
+            if local_path:
+                cdn_url = upload_content_image(token, local_path)
+                os.unlink(local_path)  # 清理临时文件
+                if cdn_url:
+                    replaced += 1
+                    print(f"  ✓ 外部图片: {src[:60]}...")
+                    return f'src="{cdn_url}"'
+            failed += 1
+            return match.group(0)
+
+        # 本地图片
         local_path = article_dir / src
         if not local_path.exists() and image_dir.exists():
             local_path = image_dir / os.path.basename(src)
@@ -233,8 +289,8 @@ def main():
     group.add_argument("--input", "-i", help="Markdown 文件路径（自动调用 format.py 排版后发布）")
     parser.add_argument("--cover", "-c", help="封面图片路径")
     parser.add_argument("--title", "-t", help="文章标题（默认从 HTML 提取）")
-    parser.add_argument("--theme", default=CONFIG["settings"]["default_theme"],
-                        help="排版主题（仅 --input 模式有效）")
+    parser.add_argument("--theme", default=None,
+                        help="排版主题（仅 --input 模式有效，默认读取 gallery 选中的主题）")
     parser.add_argument("--author", "-a",
                         default=CONFIG.get("wechat", {}).get("author", "小互"),
                         help="作者名")
@@ -244,13 +300,25 @@ def main():
 
     # ── 1. 确定文章目录 ──────────────────────────────────────────────
     if args.input:
+        # 确定主题：优先命令行指定 > gallery 选中 > 默认
+        theme = args.theme
+        if not theme:
+            gallery_theme_file = Path("/tmp/wechat-format/selected-theme.txt")
+            if gallery_theme_file.exists():
+                saved = gallery_theme_file.read_text(encoding="utf-8").strip()
+                if saved:
+                    theme = saved
+                    print(f"  使用 gallery 选中的主题: {theme}")
+        if not theme:
+            theme = CONFIG["settings"]["default_theme"]
+
         # 先调用 format.py 排版
         input_path = Path(args.input).resolve()
         print(f"=== 第一步：排版 ===")
         format_cmd = [
             sys.executable, str(SCRIPT_DIR / "format.py"),
             "--input", str(input_path),
-            "--theme", args.theme,
+            "--theme", theme,
             "--no-open",
         ]
         result = subprocess.run(format_cmd, capture_output=True, text=True)
@@ -307,13 +375,27 @@ def main():
     print("✓ token 获取成功")
 
     # ── 5. 上传正文图片 ──────────────────────────────────────────────
+    # 统计图片数量（本地 + 外部）
     image_dir = article_dir / "images"
-    if image_dir.exists() and list(image_dir.iterdir()):
-        print(f"\n上传正文图片 ({len(list(image_dir.iterdir()))} 张)...")
-        html, replaced, failed = replace_local_images(html, article_dir, token)
+    local_count = len(list(image_dir.iterdir())) if image_dir.exists() else 0
+    external_count = len(re.findall(r'src="(https?://[^"]+)"', html))
+    # 排除已是微信 CDN 的
+    external_count -= len(re.findall(r'src="https?://mmbiz\.qpic\.cn[^"]*"', html))
+    total_images = local_count + external_count
+
+    if total_images > 0:
+        print(f"\n上传正文图片 ({local_count} 本地 + {external_count} 外部)...")
+        html, replaced, failed = replace_all_images(html, article_dir, token)
         print(f"  上传完成: {replaced} 成功, {failed} 失败")
-        if failed > 0:
+        if failed > 0 and replaced == 0:
+            print("  错误: 所有图片上传失败，中止发布（不推空图草稿）")
+            sys.exit(1)
+        elif failed > 0:
             print("  警告: 部分图片上传失败，文章中对应位置可能显示空白")
+            resp = input("  继续发布？(y/N) ").strip().lower()
+            if resp != "y":
+                print("  已中止")
+                sys.exit(0)
     else:
         print("\n无正文图片需上传")
 

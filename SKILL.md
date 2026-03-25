@@ -1,6 +1,6 @@
-# sxx-wechat-format
+# xiaohu-wechat-format
 
-公众号一键排版技能。把 Obsidian 里的 Markdown 文章转成微信公众号兼容的排版 HTML，浏览器预览后一键复制粘贴到微信后台。
+公众号一键排版技能。把 Obsidian 里的 Markdown 文章转成微信公众号兼容的排版 HTML，可视化选择主题后一键复制粘贴到微信后台。
 
 ## Skill Description For Claude
 
@@ -25,70 +25,142 @@
 2. 如果没给路径，问用户要文章路径
 3. 读取文章内容，确认标题和字数
 
-#### 第 2 步：AI 预处理（在 Markdown 层面增强）
+#### 第 2 步：AI 内容分析 + 自动套格式
 
-读取文章后，在调用脚本前，Claude 在 Markdown 层面做以下增强处理：
+读取文章后，Claude 分析内容结构，在 Markdown 层面自动套用合适的排版容器。这是我们比纯手动排版工具强的核心——AI 理解内容，自动匹配最佳呈现方式。
 
-1. **识别重要引用** → 标记为 callout 格式 `> [!callout] 标题`
-   - 适合标记的场景：核心观点、重要提醒、关键数据
+**分析维度**：文章类型（访谈/教程/产品介绍/深度分析）、内容元素（对话/图片/代码/数据）、节奏感（密集段 vs 留白段）。
+
+**自动套用规则**（按优先级）：
+
+1. **对话/访谈** → `:::dialogue[标题]`
+   - 检测到 `**名字：**` 或 `名字：` 交替出现 → 用 `:::dialogue` 包裹
+   - 格式：`名字: 对话内容`（中英文冒号都支持）
+   - 不是所有对话都要套——独白段落、叙述性段落保持原样
+   - 同一场景的连续对话放一个 dialogue 块，换场景换一个新块
+
+2. **连续多图** → `:::gallery[标题]`
+   - 3张以上连续图片 → 自动套 `:::gallery`，横向滚动浏览
+   - 适合产品截图、对比图、系列图
+
+3. **超长图片** → `:::longimage[标题]`
+   - 流程图、架构图、长截图 → 固定高度容器，纵向滚动
+   - 一般需要用户标注或 AI 判断图片内容
+
+4. **核心观点/金句** → callout 格式
+   - 核心观点 → `> [!important] 标题`
+   - 小技巧/提示 → `> [!tip] 标题`
+   - 注意事项 → `> [!warning] 标题`
+   - 普通引用 → `> [!callout] 标题`（使用主题色）
    - 不要过度使用，一篇文章 1-3 处即可
 
-2. **外部链接处理** → 无需处理（脚本自动转脚注）
+5. **分隔符** → 在章节转换处确保有 `---` 分隔
 
-3. **分隔符建议** → 在章节转换处确保有 `---` 分隔
+6. **图说标记** → 图片后紧跟的说明用斜体：`*这是图片说明*`
 
-4. **主题推荐**：
-   - 深度长文、观点文 → `elegant`（金色，默认）
-   - 技术教程、AI 资讯 → `tech`（蓝色）
-   - 故事、生活类 → `warm`（橘色）
-   - 热点评论、观点文 → `bold`（红色）
-   - 知识分享、教程 → `minimal`（灰色）
+7. **外部链接** → 无需处理（脚本自动转脚注）
 
-5. 把增强后的 Markdown 保存为临时文件（或直接用原文件）
+**处理完成后**，把增强后的 Markdown 保存为临时文件（`/tmp/wechat-format/xxx-enhanced.md`）。
 
-#### 第 3 步：调用格式化脚本
+#### 第 2.5 步：推荐主题
+
+根据内容分析结果，推荐 3 个最适合的主题：
+
+| 内容类型 | 推荐主题 |
+|----------|----------|
+| 深度长文/分析 | newspaper, magazine, ink |
+| 科技产品/AI工具 | bytedance, github, sspai |
+| 访谈/对话体 | terracotta, coffee-house, mint-fresh |
+| 教程/操作指南 | github, sspai, bytedance |
+| 文艺/随笔/观点 | terracotta, sunset-amber, lavender-dream |
+| 活力/动态/速报 | sports, bauhaus, chinese |
+
+推荐的主题 ID 通过 `--recommend` 参数传给脚本，在 gallery 中高亮显示。
+
+#### 第 3 步：打开主题画廊（默认流程）
 
 ```bash
-python3 /Users/apple/.claude/skills/sxx-wechat-format/scripts/format.py \
+python3 /Users/apple/.claude/skills/xiaohu-wechat-format/scripts/format.py \
   --input "文章路径.md" \
-  --theme elegant
+  --gallery \
+  --recommend newspaper magazine ink
 ```
 
-参数说明：
-- `--input` / `-i`：Markdown 文件路径（必须）
-- `--theme` / `-t`：主题名（elegant/tech/warm/bold/minimal，默认 elegant）
-- `--vault-root`：Obsidian Vault 根目录（默认从 config.json 读取）
-- `--output` / `-o`：输出目录（默认 /tmp/wechat-format）
-- `--no-open`：不自动打开浏览器
+这会用用户的**真实文章**渲染 20 个主题，在浏览器打开画廊页面。用户点按钮切换主题预览，选中后点「用这个风格排版」一键复制到剪贴板。
+
+#### 第 3 步（备选）：直接指定主题排版
+
+如果用户已经知道想用哪个主题，可以跳过画廊直接排版：
+
+```bash
+python3 /Users/apple/.claude/skills/xiaohu-wechat-format/scripts/format.py \
+  --input "文章路径.md" \
+  --theme terracotta
+```
 
 #### 第 4 步：确认结果
 
-脚本执行后会：
-1. 在 `/tmp/wechat-format/` 生成 `preview.html`（带预览壳）和 `wechat.html`（纯微信 HTML）
-2. 自动在浏览器打开预览
-3. 告诉用户点「复制到微信」按钮，粘贴到公众号后台
+告诉用户：
+- Gallery 模式：在浏览器中切换主题预览，选中后点按钮复制，粘贴到公众号后台
+- 直接模式：在浏览器中检查预览，点「复制到微信」按钮
 
-### 可用主题
+### 参数说明
 
-| 主题 | 命令值 | 主色 | 强调色 | 适合内容 |
-|------|--------|------|--------|---------|
-| 赤陶 | terracotta | #3B3B38 | 赤陶橙 #D97757 | **默认** 知识分享、自媒体干货 |
-| 优雅 | elegant | #333 | 金色 #c9a962 | 深度长文、观点文 |
-| 科技 | tech | #2c3e50 | 蓝色 #0071e3 | 技术教程、AI 资讯 |
-| 温暖 | warm | #3d3d3d | 橘色 #e07a5f | 故事、生活类 |
-| 醒目 | bold | #1a1a1a | 红色 #ff4757 | 热点评论、观点文 |
-| 极简 | minimal | #444 | 灰色 #888 | 知识分享、教程 |
+- `--input` / `-i`：Markdown 文件路径（必须）
+- `--gallery`：打开主题画廊（推荐，默认使用）
+- `--theme` / `-t`：直接指定主题名（跳过画廊）
+- `--output` / `-o`：输出目录（默认 /tmp/wechat-format）
+- `--recommend`：推荐的主题 ID 列表，gallery 中高亮显示（如 `--recommend newspaper magazine ink`）
+- `--no-open`：不自动打开浏览器
+
+### 可用主题（30 个）
+
+#### 独立风格（9 个，差异最大）
+
+| 主题 | 命令值 | 风格 |
+|------|--------|------|
+| 赤陶 | terracotta | 暖橙色，满底圆角标题，左边框渐变 |
+| 字节蓝 | bytedance | 蓝青渐变，科技现代 |
+| 中国风 | chinese | 朱砂红，古典雅致 |
+| 报纸 | newspaper | 纽约时报风，严肃深度 |
+| GitHub | github | 开发者风，浅色代码块 |
+| 少数派 | sspai | 中文科技媒体红 |
+| 包豪斯 | bauhaus | 红蓝黄三原色，先锋几何 |
+| 墨韵 | ink | 纯黑水墨，极简留白 |
+| 暗夜 | midnight | 深色底+霓虹色，赛博朋克 |
+
+#### 精选风格（7 个）
+
+| 主题 | 命令值 | 风格 |
+|------|--------|------|
+| 运动 | sports | 渐变色带，活力动感 |
+| 薄荷 | mint-fresh | 薄荷绿，清爽健康 |
+| 日落 | sunset-amber | 琥珀暖调，温暖感性 |
+| 薰衣草 | lavender-dream | 紫色梦幻，浪漫诗意 |
+| 咖啡 | coffee-house | 棕色暖调，稳重温馨 |
+| 微信原生 | wechat-native | 微信绿，传统阅读 |
+| 杂志 | magazine | 超大留白，品质长文 |
+
+#### 模板系列（14 个，布局×配色）
+
+四种布局（简约/聚焦/精致/醒目）× 多种配色（金/蓝/红/绿/藏青/灰）
 
 ### 微信兼容说明
 
 脚本自动处理以下微信限制：
 - **纯内联样式**：所有 CSS 直接写在每个标签的 `style="..."` 属性上
-- **列表模拟**：`<ul>/<ol>` 改为 `<section>` + flexbox 模拟（微信会重构列表样式）
+- **列表模拟**：`<ul>/<ol>` 改为 `<section>` + flexbox 模拟
 - **外链转脚注**：`[text](url)` 自动变成正文 `text[1]` + 文末脚注列表
 - **图片处理**：`![[image.jpg]]` 自动搜索 Vault 并复制到输出目录
+- **多类型提示框**：`[!tip]`/`[!note]`/`[!important]`/`[!warning]`/`[!caution]` 各有独立配色
+- **图说识别**：图片后紧跟的斜体段落自动变为居中灰色图说
+- **对话气泡**：`:::dialogue[标题]` → 左右交替聊天气泡，右侧用主题色
+- **图片画廊**：`:::gallery[标题]` → 横向滚动多图容器
+- **长图展示**：`:::longimage[标题]` → 固定高度纵向滚动容器
 
 ### 注意事项
 
 - 依赖 Python `markdown` 库（系统已安装）
-- 图片在预览中可见，但粘贴到微信后需要手动上传（微信不接受本地图片）
+- 图片在预览中可见，但粘贴到微信后需要手动上传
 - 如果用户对排版不满意，可以切换主题重新生成
+- 画廊模式渲染 20 个主题，用的是用户的真实文章

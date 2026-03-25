@@ -2,7 +2,11 @@
   "output_dir": "/tmp/wechat-format",
   "vault_root": "/path/to/your/obsidian/vault",
   "settings": {
-    "default_theme": "elegant",
+    "default_theme": "newspaper",
     "auto_open_browser": true
+  },
+  "wechat": {
+    "app_id": "YOUR_APP_ID",
+    "app_secret": "YOUR_APP_SECRET"
   }
 }

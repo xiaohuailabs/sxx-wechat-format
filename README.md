@@ -1,4 +1,4 @@
-# sxx-wechat-format
+# xiaohu-wechat-format
 
 A Claude Code skill that formats Markdown articles into WeChat Official Account (公众号) compatible HTML — with 30 themes, a visual gallery picker, and one-click publishing to drafts.
 
@@ -21,8 +21,8 @@ A Claude Code skill that formats Markdown articles into WeChat Official Account 
 ```bash
 # Install
 cd ~/.claude/skills/
-git clone https://github.com/xiaohuailabs/sxx-wechat-format.git
-cp sxx-wechat-format/config.example.json sxx-wechat-format/config.json
+git clone https://github.com/xiaohuailabs/xiaohu-wechat-format.git
+cp xiaohu-wechat-format/config.example.json xiaohu-wechat-format/config.json
 pip3 install markdown requests
 
 # Format an article (opens gallery in browser)

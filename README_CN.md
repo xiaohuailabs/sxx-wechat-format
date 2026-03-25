@@ -1,4 +1,4 @@
-# sxx-wechat-format
+# xiaohu-wechat-format
 
 Claude Code 公众号一键排版+发布技能。Markdown → 微信兼容 HTML → 推送草稿箱，一句话搞定。
 
@@ -20,8 +20,8 @@ Claude Code 公众号一键排版+发布技能。Markdown → 微信兼容 HTML 
 
 ```bash
 cd ~/.claude/skills/
-git clone https://github.com/xiaohuailabs/sxx-wechat-format.git
-cp sxx-wechat-format/config.example.json sxx-wechat-format/config.json
+git clone https://github.com/xiaohuailabs/xiaohu-wechat-format.git
+cp xiaohu-wechat-format/config.example.json xiaohu-wechat-format/config.json
 pip3 install markdown requests
 ```
 

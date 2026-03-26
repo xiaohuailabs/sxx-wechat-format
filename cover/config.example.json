@@ -1,0 +1,47 @@
+{
+  "output_dir": "~/Documents/covers",
+  "settings": {
+    "base_url": "https://YOUR_PROVIDER_BASEURL/v1",
+    "model": "gemini-3-pro-image-preview"
+  },
+  "secrets": {
+    "api_key": ""
+  },
+  "__ui": {
+    "fields": {
+      "output_dir": {
+        "label": "输出目录",
+        "type": "directory",
+        "required": true,
+        "description": "封面图保存到该目录下",
+        "placeholder": "请选择输出目录…"
+      },
+      "settings.base_url": {
+        "label": "API 基础地址（base_url）",
+        "type": "string",
+        "required": true,
+        "description": "第三方供应商提供的 base_url（通常以 /v1 或 /v1beta 结尾）",
+        "placeholder": "例如：https://x.wtapi.ai/v1"
+      },
+      "settings.model": {
+        "label": "模型（model）",
+        "type": "string",
+        "required": true,
+        "description": "例如：gemini-3-pro-image-preview"
+      },
+      "secrets.api_key": {
+        "label": "API 密钥（api_key）",
+        "type": "secret",
+        "required": true,
+        "description": "敏感信息：网页不回显；留空=保持不变",
+        "placeholder": "留空=保持不变"
+      }
+    },
+    "order": [
+      "output_dir",
+      "settings.base_url",
+      "settings.model",
+      "secrets.api_key"
+    ]
+  }
+}

@@ -134,11 +134,40 @@ Edit `config.json`:
 - Get AppID/AppSecret from: WeChat Official Account Admin → Settings → Basic Configuration
 - **Important**: Add your public IP to the WeChat IP whitelist, otherwise API calls will fail with error 40164
 
-## Cover Image Generation (Optional)
+## Cover Image Generation
 
-After formatting, ask Claude to generate a cover image. The skill includes a built-in prompt template optimized for WeChat cover images (2.35:1 ratio, Notion illustration style).
+This repo includes a complete cover image generator in `cover/`. It calls the Gemini Image API (or compatible third-party gateways) to produce WeChat cover images (2.35:1 ratio, Notion illustration style).
 
-You need an image generation tool configured in `config.json` → `cover.image_generation_script`, or simply use any AI image generator manually with the prompt from `SKILL.md`.
+### Setup
+
+1. Copy `cover/config.example.json` → `cover/config.json`
+2. Fill in your API credentials:
+
+```json
+{
+  "output_dir": "~/Documents/covers",
+  "settings": {
+    "base_url": "https://YOUR_PROVIDER/v1",
+    "model": "gemini-3-pro-image-preview"
+  },
+  "secrets": {
+    "api_key": "YOUR_API_KEY"
+  }
+}
+```
+
+3. Generate a cover:
+
+```bash
+python3 scripts/generate.py \
+  --config cover/config.json \
+  --prompt-file prompt.md \
+  --out cover.jpg
+```
+
+Or with Claude Code, just say: `给这篇文章配个封面`
+
+See `cover/SKILL.md` for the full prompt template and workflow details.
 
 ## How WeChat Compatibility Works
 

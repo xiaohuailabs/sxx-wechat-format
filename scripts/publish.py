@@ -211,67 +211,21 @@ def replace_all_images(html, article_dir, token):
 
 
 def list_albums(token):
-    """获取公众号合集列表，返回 [{"album_id": ..., "name": ..., "description": ...}, ...]"""
-    url = f"https://api.weixin.qq.com/cgi-bin/newarticle/getalbum?access_token={token}"
-    all_items = []
-    offset = 0
-    count = 20
-
-    while True:
-        body = json.dumps({"count": count, "offset": offset}, ensure_ascii=False).encode("utf-8")
-        resp = requests.post(url, data=body,
-                             headers={"Content-Type": "application/json"}, timeout=15)
-        result = resp.json()
-
-        if result.get("errcode", 0) != 0:
-            errcode = result.get("errcode", "?")
-            errmsg = result.get("errmsg", "未知错误")
-            print(f"警告: 获取合集列表失败 (errcode={errcode}: {errmsg})")
-            return []
-
-        items = result.get("items", [])
-        all_items.extend(items)
-
-        if not result.get("has_more", False) or not items:
-            break
-        offset += len(items)
-
-    return all_items
+    """获取公众号合集列表。
+    注意：微信官方 API 目前不提供获取合集列表的接口，此函数保留供未来官方支持后使用。
+    当前只能直接传入 album_id（在公众号后台文章 URL 中可找到）。
+    """
+    print("⚠️  微信官方 API 暂不支持获取合集列表，请在公众号后台找到合集链接中的 album_id，直接用 --album <album_id> 传入。")
+    return []
 
 
 def resolve_album_id(token, album_arg):
-    """将 --album 参数解析为 album_id。支持直接传 ID 或按名称模糊匹配。"""
-    albums = list_albums(token)
-
-    if not albums:
-        print("警告: 未找到任何合集，忽略 --album 参数")
-        return None
-
-    # 先尝试精确 ID 匹配
-    for a in albums:
-        if a.get("album_id") == album_arg:
-            print(f"  ✓ 合集: {a.get('name', album_arg)} (id={album_arg})")
-            return album_arg
-
-    # 再按名称模糊匹配（不区分大小写）
-    keyword = album_arg.lower()
-    matched = [a for a in albums if keyword in a.get("name", "").lower()]
-
-    if len(matched) == 1:
-        a = matched[0]
-        aid = a["album_id"]
-        print(f"  ✓ 合集: {a['name']} (id={aid})")
-        return aid
-    elif len(matched) > 1:
-        print(f"错误: 合集名称 '{album_arg}' 匹配到多个结果，请使用更精确的名称或直接传 album_id：")
-        for a in matched:
-            print(f"    - {a['name']}  (id={a['album_id']})")
-        return None
-    else:
-        print(f"错误: 未找到名称包含 '{album_arg}' 的合集。可用合集如下：")
-        for a in albums:
-            print(f"    - {a['name']}  (id={a['album_id']})")
-        return None
+    """将 --album 参数解析为 album_id。
+    由于微信 API 暂不支持获取合集列表，目前只接受直接传入 album_id。
+    """
+    # 看起来像 ID（纯字母数字）直接使用，不做远程验证
+    print(f"  ℹ️  将使用 album_id={album_arg}（无法通过 API 验证是否存在，请确认 ID 正确）")
+    return album_arg
 
 
 def push_draft(token, title, content, thumb_media_id, author="", album_id=None):
@@ -349,7 +303,7 @@ def find_cover_image(article_dir, cover_arg=None):
 # ── 主流程 ────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="微信公众号草稿箱发布工具")
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--dir", "-d", help="format.py 的输出目录（含 article.html 和 images/）")
     group.add_argument("--input", "-i", help="Markdown 文件路径（自动调用 format.py 排版后发布）")
     parser.add_argument("--cover", "-c", help="封面图片路径")
@@ -367,19 +321,12 @@ def main():
                         help="列出账号下所有合集后退出")
     args = parser.parse_args()
 
+    if not args.list_albums and not args.dir and not args.input:
+        parser.error("请指定 --dir 或 --input，或使用 --list-albums 列出合集")
+
     # ── 0. --list-albums 快捷命令 ────────────────────────────────────
     if args.list_albums:
-        print("获取 access_token...")
-        token = get_access_token()
-        albums = list_albums(token)
-        if albums:
-            print(f"\n共找到 {len(albums)} 个合集：\n")
-            for a in albums:
-                print(f"  [{a['album_id']}]  {a.get('name', '(无名称)')}")
-                if a.get("description"):
-                    print(f"    {a['description']}")
-        else:
-            print("未找到任何合集")
+        list_albums(None)  # token 暂不需要，函数只打印说明
         return
 
     # ── 1. 确定文章目录 ──────────────────────────────────────────────
@@ -498,9 +445,12 @@ def main():
         thumb_media_id = None
 
     if not thumb_media_id:
-        print("\n错误: 微信要求必须有封面图。")
-        print("  请用 --cover 指定封面图路径，或在 images/ 目录放一张图片")
-        sys.exit(1)
+        if args.dry_run:
+            print("  [dry-run] 跳过封面图校验")
+        else:
+            print("\n错误: 微信要求必须有封面图。")
+            print("  请用 --cover 指定封面图路径，或在 images/ 目录放一张图片")
+            sys.exit(1)
 
     # ── 7. 解析合集 ──────────────────────────────────────────────────
     album_id = None

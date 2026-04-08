@@ -2,11 +2,12 @@
 
 一个同时适用于 **Claude**、**Codex** 和命令行的公众号排版工具。
 
-它会把 Markdown 转成公众号兼容的内联 HTML，打开主题画廊让你直接挑样式，支持可调的极简主题，也支持后续推送到公众号草稿箱。
+它会把 Markdown 转成公众号兼容的内联 HTML，打开主题画廊让你直接挑样式，支持可调的极简主题，可直接复制到公众号文章创作处，也支持后续推送到公众号草稿箱。
 
 **[English README](README.md)**
 
-![画廊预览](docs/gallery-preview.png)
+![画廊预览 2](docs/gallery-preview-2.png)
+![画廊预览 3](docs/gallery-preview-3.png)
 
 ## 功能
 
@@ -79,15 +80,12 @@ Codex 有两种常见用法：
 python3 scripts/format.py --input article.md --gallery
 ```
 
-默认输出结构：
+画廊模式输出：
 
 ```text
 article.md
 wechat output/
   gallery.html
-  article.html
-  preview.html
-  images/
 ```
 
 画廊页面只负责预览和选样式，不会直接改你的原文。复制到公众号后台之后，你仍然可以继续微调文字。
@@ -97,6 +95,19 @@ wechat output/
 ```bash
 python3 scripts/format.py --input article.md --theme newspaper
 ```
+
+直接模式输出：
+
+```text
+article.md
+wechat output/
+  article.html
+  preview.html
+  images/
+```
+
+- `preview.html` 是给人看的单主题预览页，带复制按钮。
+- `article.html` 是纯正文成品，适合直接复制粘贴，也给 `publish.py` 读取。
 
 ### 可调极简主题
 
@@ -165,7 +176,6 @@ python3 scripts/publish.py \
 
 - 旧主题 ID 保持兼容。
 - 画廊里的极简组现在只保留一个 `minimal-flex` 入口。
-- 画廊不再额外显示“推荐”小角标，默认样式改成更克制的弱提示。
 - 旧的 `minimal-*` 主题仍然可以通过命令行直接调用。
 
 ## 容器语法

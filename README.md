@@ -6,7 +6,8 @@ It turns Markdown into WeChat-compatible inline HTML, opens a browser gallery fo
 
 **[中文说明](README_CN.md)**
 
-![Gallery Preview](docs/gallery-preview.png)
+![Gallery Preview 2](docs/gallery-preview-2.png)
+![Gallery Preview 3](docs/gallery-preview-3.png)
 
 ## What It Does
 
@@ -79,24 +80,34 @@ If you need publish, comment reply, cover generation, or custom defaults like `v
 python3 scripts/format.py --input article.md --gallery
 ```
 
-Default output:
+Gallery mode output:
 
 ```text
 article.md
 wechat output/
   gallery.html
-  article.html
-  preview.html
-  images/
 ```
 
-The browser page is only for preview and picking a style. After copying into WeChat, you can still fine-tune text manually in the editor.
+The gallery page is only for preview and picking a style. After copying into WeChat, you can still fine-tune text manually in the editor.
 
 ### Format Directly
 
 ```bash
 python3 scripts/format.py --input article.md --theme newspaper
 ```
+
+Direct mode output:
+
+```text
+article.md
+wechat output/
+  article.html
+  preview.html
+  images/
+```
+
+- `preview.html` is the human-facing single-theme preview with the copy button.
+- `article.html` is the raw WeChat-ready body used for copy/paste and by `publish.py`.
 
 ### Adjustable Minimal Theme
 

@@ -296,6 +296,10 @@ def main():
                         help="作者名")
     parser.add_argument("--dry-run", action="store_true",
                         help="只做排版和图片上传，不推送草稿箱（用于测试）")
+    parser.add_argument("--no-table-image", action="store_true",
+                        help="禁用 <table> → PNG 转换（默认启用，绕过微信白名单）")
+    parser.add_argument("--no-flatten-code", action="store_true",
+                        help="禁用代码块扁平化（默认启用，清理 format.py 高亮残留）")
     args = parser.parse_args()
 
     # ── 1. 确定文章目录 ──────────────────────────────────────────────
@@ -368,6 +372,31 @@ def main():
     author = args.author
     print(f"标题: {title}")
     print(f"作者: {author}")
+
+    # ── 3.5 微信兼容性后处理 ─────────────────────────────────────────
+    # 微信 /cgi-bin/draft/add 的 HTML 白名单会把 <table> 整个吃掉、
+    # 把代码块里的嵌套 <span style=color> 剥成属性残留字符串。
+    # 这两步在推送前做清洗 / 绕过。
+    if not args.no_table_image:
+        try:
+            from render_tables import render_and_replace  # 延迟 import，playwright 可能未装
+        except ImportError:
+            print("  ⚠ 表格转图需要 Playwright：pip install playwright && playwright install chromium")
+            print("  跳过本步。如确定不需要，可加 --no-table-image")
+        else:
+            html, n_tables = render_and_replace(html, article_dir)
+            if n_tables:
+                print(f"  表格渲染: {n_tables} 张 → PNG")
+
+    if not args.no_flatten_code:
+        from clean_code import clean as clean_code
+        html, n_code = clean_code(html)
+        if n_code:
+            print(f"  代码块扁平化: {n_code} 个")
+
+    # 回写 article.html 便于调试查验
+    if (article_dir / "article.html").exists():
+        (article_dir / "article.html").write_text(html, encoding="utf-8")
 
     # ── 4. 获取 token ────────────────────────────────────────────────
     print(f"\n获取 access_token...")

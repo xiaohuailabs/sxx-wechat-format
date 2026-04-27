@@ -214,6 +214,10 @@ See `cover/SKILL.md` for the cover workflow.
 - `markdown`
 - `requests` for publishing
 
+## Status
+
+Usable prototype. Maintained.
+
 ## License
 
 MIT
